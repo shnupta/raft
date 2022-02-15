@@ -44,8 +44,32 @@ def next(s) do
         new_s
       end
 
-    # { :VOTE_REPLY, msg } ->
-    #   # omitted
+    { :VOTE_REPLY, { q, term, vote} } ->
+      new_s = if term > s.curr_term do
+        State.stepdown(s, term)
+      else
+        s
+      end
+      if term == new_s.curr_term and new_s.role == :CANDIDATE do
+        voted_s = if vote == self() do
+          State.add_to_voted_by(new_s, q)
+        else
+          new_s
+        end
+        reset_timer_s = Timer.cancel_append_entries_timer(voted_s, q)
+        final_s = if State.has_majority_votes(reset_timer_s) do
+          reset_timer_s
+          |> State.role(:LEADER)
+          |> State.leaderP(self())
+          # TODO: for each process except self, send append entries
+        else
+          reset_timer_s
+        end
+        final_s
+      else
+        new_s
+      end
+
 
     { :ELECTION_TIMEOUT, {curr_term, curr_election} } ->
       unless s.role == :LEADER do
