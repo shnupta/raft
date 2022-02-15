@@ -31,3 +31,4 @@ raft-*.tar
 .DS_Store
 *.swp
 *.swo
+.vscode/
