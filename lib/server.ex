@@ -21,32 +21,60 @@ end # start
 
 # _________________________________________________________ next()
 def next(s) do
-
   s = receive do
 
-    { :APPEND_ENTRIES_REQUEST, msg } ->
-       # omitted  
+    # { :APPEND_ENTRIES_REQUEST, msg } ->
+    #    # omitted
 
-    { :APPEND_ENTRIES_REPLY, msg } ->
-      # omitted
+    # { :APPEND_ENTRIES_REPLY, msg } ->
+    #   # omitted
 
-    { :VOTE_REQUEST, msg } ->
-      # omitted
+    { :VOTE_REQUEST, { q, term } } ->
+      new_s = if term > s.curr_term do
+        State.stepdown(s, term)
+      else
+        s
+      end
+      if (term == new_s.curr_term and (new_s.voted_for == q or new_s.voted_for == nil)) do
+        voted_s = State.voted_for(new_s, q)
+        |> Timer.restart_election_timer()
+        send q, { :VOTE_REPLY, { self(), term, q}} # TODO: double check this
+        voted_s
+      else
+        new_s
+      end
 
-    { :VOTE_REPLY, msg } ->
-      # omitted
-    
-    { :ELECTION_TIMEOUT, msg } ->
-      # omitted
-    
-    { :APPEND_ENTRIES_TIMEOUT, msg } ->
-      # omitted
+    # { :VOTE_REPLY, msg } ->
+    #   # omitted
 
-    { :CLIENT_REQUEST, msg } ->                          
-       # omitted
- 
-    unexpected ->
-      # omitted
+    { :ELECTION_TIMEOUT, {curr_term, curr_election} } ->
+      unless s.role == :LEADER do
+        new_s = Timer.restart_election_timer(s)
+        |> State.inc_election()
+        |> State.inc_term()
+        |> State.role(:CANDIDATE)
+        |> State.vote_for_self()
+        |> Debug.info("Cancelling all append entries timers")
+        |> Timer.cancel_all_append_entries_timers()
+        for q <- s.servers do
+          send self(), { :APPEND_ENTRIES_TIMEOUT, { q } }
+          Debug.sent(s, { :APPEND_ENTRIES_TIMEOUT, { q } })
+        end
+        new_s
+      end
+
+    { :APPEND_ENTRIES_TIMEOUT, { q } } ->
+      if s.role == :CANDIDATE do
+        new_s = Timer.restart_append_entries_timer(s, q)
+        send q, { :VOTE_REQUEST, { self(), new_s.curr_term } }
+        Debug.sent(new_s, { :VOTE_REQUEST, { self(), new_s.curr_term } })
+      end
+
+    # { :CLIENT_REQUEST, msg } ->
+    #    # omitted
+
+    # unexpected ->
+    #   # omitted
 
   end # receive
 
@@ -55,4 +83,3 @@ def next(s) do
 end # next
 
 end # Server
-
