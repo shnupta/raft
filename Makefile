@@ -12,10 +12,10 @@ SETUP     = default	# one of default, slower, faster, etc
 # AppendEntries(areq, arep, atim), Vote(vreq, vrep, vall), Election(etim), DB(dreq, drep), Client(creq, crep)
 # Prefixes + for send/send_after,  - for receive
 DEBUG_OPTIONS = "+areq -areq +arep -arep +vreq +vall -vreq +vrep -vrep +atim -atim +etim -etim +dreq -dreq +drep -drep -creq -crep"
-# DEBUG_OPTIONS = "!inf !snd ?rec"
-DEBUG_OPTIONS = ""
+DEBUG_OPTIONS = "!inf !snd ?rec"
+# DEBUG_OPTIONS = ""
 
-DEBUG_LEVEL   = 1
+DEBUG_LEVEL   = 2
 
 START     = Raft.start
 HOST	 := 127.0.0.1
