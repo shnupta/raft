@@ -30,84 +30,16 @@ def next(s) do
     #   # omitted
 
     { :VOTE_REQUEST, { q, term } } ->
-      s = if term > s.curr_term do
-        State.stepdown(s, term)
-          |> Debug.info(":VOTE_REQUEST - Stepping down", 2)
-      else
-        s
-      end
-
-      if (term == s.curr_term and (s.voted_for == q or s.voted_for == nil)) do
-        s = State.voted_for(s, q)
-        |> Timer.restart_election_timer()
-        send q, { :VOTE_REPLY, { self(), term, s.voted_for}}
-        Debug.sent(s, { :VOTE_REPLY, { self(), term, s.voted_for}, q}, 2)
-        s
-      else
-        s
-      end
+      Vote.request(s, q, term)
 
     { :VOTE_REPLY, { q, term, vote} } ->
-      s = if term > s.curr_term do
-        State.stepdown(s, term)
-          |> Debug.info(":VOTE_REPLY - Stepping down", 2)
-      else
-        s
-      end
-
-      if term == s.curr_term and s.role == :CANDIDATE do
-        s = if vote == self() do
-          State.add_to_voted_by(s, q)
-        else
-          s
-        end
-
-        s = Timer.cancel_append_entries_timer(s, q)
-
-        if State.has_majority_votes(s) do
-          s = s
-            |> State.role(:LEADER)
-            |> State.leaderP(self())
-            |> Debug.info("Became leader", 2)
-          # TODO: for each process except self, send append entries
-
-          s
-        else
-          s
-        end
-
-      else
-        s
-      end
-
+      Vote.reply(s, q, term, vote)
 
     { :ELECTION_TIMEOUT, {curr_term, curr_election} } ->
-      if s.role != :LEADER do
-        s = Timer.restart_election_timer(s)
-          |> State.inc_election()
-          |> State.inc_term()
-          |> State.role(:CANDIDATE)
-          |> State.vote_for_self()
-          |> Debug.info("Cancelling all append entries timers")
-          |> Timer.cancel_all_append_entries_timers()
-
-        for q <- s.servers do
-          send self(), { :APPEND_ENTRIES_TIMEOUT, { q } }
-          Debug.sent(s, { :APPEND_ENTRIES_TIMEOUT, { q } })
-        end
-        s
-      else
-        s
-      end
+      Vote.election_timeout(s, curr_term, curr_election)
 
     { :APPEND_ENTRIES_TIMEOUT, { q } } ->
-      if s.role == :CANDIDATE do
-        s = Timer.restart_append_entries_timer(s, q)
-        send q, { :VOTE_REQUEST, { self(), s.curr_term } }
-        Debug.sent(s, { :VOTE_REQUEST, { self(), s.curr_term }, q }, 2)
-      else
-        s
-      end
+      AppendEntries.timeout(s, q)
 
     # { :CLIENT_REQUEST, msg } ->
     #    # omitted
@@ -120,7 +52,5 @@ def next(s) do
   Server.next(s)
 
 end # next
-
-# defp sendAppendEntries
 
 end # Server
