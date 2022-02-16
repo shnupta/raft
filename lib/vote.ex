@@ -48,8 +48,8 @@ def reply(s, q, term, vote) do
         |> State.leaderP(self())
         |> Debug.info("Became leader", 2)
       # TODO: for each process except self, send append entries
-
-      s
+      results = for q <- Enum.filter(s.servers, fn p -> p != self() end), do: AppendEntries.send_append_entries(s, q)
+      List.last(results)
     else
       s
     end

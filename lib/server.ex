@@ -14,6 +14,9 @@ def start(config, server_num) do
   receive do
   { :BIND, servers, databaseP } ->
     State.initialise(config, server_num, servers, databaseP)
+      |> Debug.info(servers, 4)
+      |> State.init_next_index()
+      |> State.init_match_index()
       |> Timer.restart_election_timer()
       |> Server.next()
   end # receive
