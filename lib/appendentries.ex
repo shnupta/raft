@@ -64,7 +64,7 @@ def request(s, q, { term, prev_log_index, prev_log_term, entries, commit_index }
     index = 0
     success = prev_log_index == 0 or ((prev_log_index <= Log.last_index(s)) and Log.term_at(s, prev_log_index) == prev_log_term)
     s = if success do
-      {s, index} = store_entries(s, prev_log_index, entries, commit_index)
+      {s, index} = store_entries(s, prev_log_index, entries, commit_index) # TODO: Implement this function
       s
     else
       s
@@ -78,7 +78,7 @@ defp store_entries(s, prev_log_index, entries, commit_index) do
   {s, prev_log_index}
 end
 
-def reply(s, q, { term, success, index }) do
+def reply(s, q, { term, success, index }) do # Implement handling the other servers' replies to append entry
   s
 end
 

@@ -13,6 +13,7 @@ def request(s, req) do
     s = s
       |> Log.append_entry(entry)
       |> AppendEntries.send_all_append_entries()
+    # TODO: Send replies to the client
     # send req.clientP, { :CLIENT_REPLY, { m_cid, reply, self() }}
     s
   else
