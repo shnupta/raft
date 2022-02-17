@@ -56,6 +56,8 @@ def voted_for(s, v),      do: Map.put(s, :voted_for, v)
 def new_voted_by(s),      do: Map.put(s, :voted_by, MapSet.new)
 def add_to_voted_by(s, v),do: Map.put(s, :voted_by, MapSet.put(s.voted_by, v))
 def vote_tally(s),        do: MapSet.size(s.voted_by)
+def vote_for_self(s),     do: (voted_for(s, s.selfP); add_to_voted_by(s, s.selfP))
+def has_majority_votes(s),do: vote_tally(s) >= s.majority
 
 def append_entries_timers(s),
                           do: Map.put(s, :append_entries_timers, Map.new)
@@ -74,6 +76,14 @@ def next_index(s, v),     do: Map.put(s, :next_index, v)
 def next_index(s, i, v),  do: Map.put(s, :next_index, Map.put(s.next_index, i, v))
 def match_index(s, v),    do: Map.put(s, :match_index, v)
 def match_index(s, i, v), do: Map.put(s, :match_index, Map.put(s.match_index, i, v))
+
+def stepdown(s, t) do
+  s
+  |> curr_term(t)
+  |> role(:FOLLOWER)
+  |> voted_for(nil)
+  |> Timer.restart_election_timer()
+end
 
 
 def init_next_index(s) do

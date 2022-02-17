@@ -19,7 +19,7 @@ def restart_election_timer(s) do
   )
 
   s |> State.election_timer(election_timer)
-    |> Debug.message("+etim", {:ELECTION_TIMEOUT, {s.curr_term, s.curr_election}, election_timeout})
+    |> Debug.message("+etim", {:ELECTION_TIMEOUT, {s.curr_term, s.curr_election}}, election_timeout)
 end # restart_election_timer
 
 # _________________________________________________________ restart_vote_timer()
@@ -40,7 +40,7 @@ def restart_append_entries_timer(s, followerP) do
     s.config.append_entries_timeout
   )
   s |> State.append_entries_timer(followerP, append_entries_timer)
-  s |> Debug.message("+atim", {{:APPEND_ENTRIES_TIMEOUT, s.curr_term, followerP}, s.config.append_entries_timeout})
+  s |> Debug.message("+atim", {:APPEND_ENTRIES_TIMEOUT, {s.curr_term, followerP}, s.config.append_entries_timeout})
 end # restart_append_entries_timer
 
 # _________________________________________________________ cancel_append_entries_timer()

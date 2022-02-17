@@ -14,6 +14,9 @@ def start(config, server_num) do
   receive do
   { :BIND, servers, databaseP } ->
     State.initialise(config, server_num, servers, databaseP)
+      |> Debug.info(servers, 4)
+      |> State.init_next_index()
+      |> State.init_match_index()
       |> Timer.restart_election_timer()
       |> Server.next()
   end # receive
@@ -21,32 +24,31 @@ end # start
 
 # _________________________________________________________ next()
 def next(s) do
-
   s = receive do
 
-    { :APPEND_ENTRIES_REQUEST, msg } ->
-       # omitted  
+    # { :APPEND_ENTRIES_REQUEST, msg } ->
+    #    # omitted
 
-    { :APPEND_ENTRIES_REPLY, msg } ->
-      # omitted
+    # { :APPEND_ENTRIES_REPLY, msg } ->
+    #   # omitted
 
-    { :VOTE_REQUEST, msg } ->
-      # omitted
+    { :VOTE_REQUEST, { q, term } } ->
+      Vote.request(s, q, term)
 
-    { :VOTE_REPLY, msg } ->
-      # omitted
-    
-    { :ELECTION_TIMEOUT, msg } ->
-      # omitted
-    
-    { :APPEND_ENTRIES_TIMEOUT, msg } ->
-      # omitted
+    { :VOTE_REPLY, { q, term, vote} } ->
+      Vote.reply(s, q, term, vote)
 
-    { :CLIENT_REQUEST, msg } ->                          
-       # omitted
- 
-    unexpected ->
-      # omitted
+    { :ELECTION_TIMEOUT, {curr_term, curr_election} } ->
+      Vote.election_timeout(s, curr_term, curr_election)
+
+    { :APPEND_ENTRIES_TIMEOUT, { q } } ->
+      AppendEntries.timeout(s, q)
+
+    # { :CLIENT_REQUEST, msg } ->
+    #    # omitted
+
+    # unexpected ->
+    #   # omitted
 
   end # receive
 
@@ -55,4 +57,3 @@ def next(s) do
 end # next
 
 end # Server
-
