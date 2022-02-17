@@ -4,7 +4,7 @@
 # Makefile, v1
 
 SERVERS   = 3      	
-CLIENTS   = 0      	
+CLIENTS   = 1      	
 
 TIMELIMIT = 15000	# quits after milli-seconds(ms)
 SETUP     = default	# one of default, slower, faster, etc
@@ -15,7 +15,7 @@ DEBUG_OPTIONS = "+areq -areq +arep -arep +vreq +vall -vreq +vrep -vrep +atim -at
 DEBUG_OPTIONS = "!inf !snd ?rec"
 # DEBUG_OPTIONS = ""
 
-DEBUG_LEVEL   = 1
+DEBUG_LEVEL   = 2
 
 START     = Raft.start
 HOST	 := 127.0.0.1

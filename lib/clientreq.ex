@@ -7,7 +7,7 @@ defmodule ClientReq do
 # s = server process state (c.f. self/this)
 
 def request(s, req) do
-  Debug.received(s, req, 2)
+  Debug.received(s, req, 1)
   if s.role == :LEADER do
     entry = %{term: s.curr_term, request: req}
     s = s

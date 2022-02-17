@@ -35,10 +35,11 @@ def send_append_entries(s, q) do
 
   prev_log_index = s.next_index[q] - 1
   prev_log_term = Log.term_at(s, prev_log_index)
-  last_entry = min(Log.last_index(s), s.next_index[q] + 1)
+  last_entry = min(Log.last_index(s), prev_log_index)
   Debug.info(s, "Last entry = #{last_entry}", 2)
+  Debug.info(s, "Last index = #{Log.last_index(s)}", 2)
 
-  entries = Enum.slice(s.log, s.next_index[q], last_entry - Log.last_index(s))
+  entries = Enum.slice(s.log, last_entry..- 1)
   send q, { :APPEND_ENTRIES_REQUEST, self(),
   { s.curr_term, prev_log_index, prev_log_term,
   entries, s.commit_index } }
