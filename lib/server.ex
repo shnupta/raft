@@ -26,20 +26,14 @@ end # start
 def next(s) do
   s = receive do
 
-    # { :HEARTBEAT_TIMEOUT } -> send_heartbeats(s)
-
-    # { :HEARTBEAT } ->
-    #   Debug.info(s, "Received heartbeat", 2)
-    #   Timer.restart_election_timer(s)
-
     { :APPEND_ENTRIES_REQUEST, q, msg } ->
       AppendEntries.request(s, q, msg)
 
-    # { :APPEND_ENTRIES_REPLY, msg } ->
-    #   # omitted
+    { :APPEND_ENTRIES_REPLY, q, msg } ->
+      AppendEntries.reply(s, q, msg)
 
-    { :VOTE_REQUEST, { q, term } } ->
-      Vote.request(s, q, term)
+    { :VOTE_REQUEST, { q, term, last_log_term, last_log_index} } ->
+      Vote.request(s, q, term, last_log_term, last_log_index)
 
     { :VOTE_REPLY, { q, term, vote} } ->
       Vote.reply(s, q, term, vote)
@@ -61,12 +55,5 @@ def next(s) do
   Server.next(s)
 
 end # next
-
-# def send_heartbeats(s) do
-#   servers = Enum.filter(s.servers, fn p -> p != self() end)
-#   for s <- servers, do: send s, { :HEARTBEAT }
-#   Process.send_after(self(), { :HEARTBEAT_TIMEOUT }, 50)
-#   s
-# end
 
 end # Server
