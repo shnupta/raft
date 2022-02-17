@@ -50,6 +50,7 @@ def params :default do
     client_reply_timeout:    500,      # timeout(ms) for the reply to a client request
 
     election_timeout_range:  100..200, # timeout(ms) for election, set randomly in range
+    # election_timeout_range:  1000..2000, # timeout(ms) for election, set randomly in range
     append_entries_timeout:  10,       # timeout(ms) for the reply to a append_entries request
 
     monitor_interval:        500,      # interval(ms) between monitor summaries

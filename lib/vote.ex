@@ -17,6 +17,7 @@ def request(s, q, term) do
   if (term == s.curr_term and (s.voted_for == q or s.voted_for == nil)) do
     s = State.voted_for(s, q)
     |> Timer.restart_election_timer()
+    |> Debug.info("Sending my vote reply and restarting election timer", 2)
     send q, { :VOTE_REPLY, { self(), term, s.voted_for}}
     Debug.sent(s, { :VOTE_REPLY, { self(), term, s.voted_for}, q}, 2)
     s
@@ -43,13 +44,12 @@ def reply(s, q, term, vote) do
     s = Timer.cancel_append_entries_timer(s, q)
 
     if State.has_majority_votes(s) do
-      s = s
+      s
         |> State.role(:LEADER)
         |> State.leaderP(self())
         |> Debug.info("Became leader", 2)
-      # TODO: for each process except self, send append entries
-      results = for q <- Enum.filter(s.servers, fn p -> p != self() end), do: AppendEntries.send_append_entries(s, q)
-      List.last(results)
+        |> AppendEntries.send_all_append_entries()
+        # |> Server.send_heartbeats()
     else
       s
     end
@@ -59,7 +59,7 @@ def reply(s, q, term, vote) do
   end
 end # reply
 
-def election_timeout(s, curr_term, curr_election) do
+def election_timeout(s, _curr_term, _curr_election) do
   if s.role != :LEADER do
     s = Timer.restart_election_timer(s)
       |> State.inc_election()
@@ -70,8 +70,8 @@ def election_timeout(s, curr_term, curr_election) do
       |> Timer.cancel_all_append_entries_timers()
 
     for q <- s.servers do
-      send self(), { :APPEND_ENTRIES_TIMEOUT, { q } }
-      Debug.sent(s, { :APPEND_ENTRIES_TIMEOUT, { q } })
+      send self(), { :APPEND_ENTRIES_TIMEOUT, { s.curr_term, q } }
+      Debug.sent(s, { :APPEND_ENTRIES_TIMEOUT, { s.curr_term, q } })
     end
     s
   else
