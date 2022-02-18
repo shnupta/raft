@@ -27,26 +27,39 @@ def next(s) do
   s = receive do
 
     { :APPEND_ENTRIES_REQUEST, q, msg } ->
-      Debug.received(s, ":APPEND_ENTRIES_REQUEST", 2)
-      AppendEntries.request(s, q, msg)
+      s
+        |> Debug.received({ :APPEND_ENTRIES_REQUEST, q, msg }, 3)
+        |> AppendEntries.request(q, msg)
 
     { :APPEND_ENTRIES_REPLY, q, msg } ->
-      AppendEntries.reply(s, q, msg)
+      s
+        |> Debug.received({ :APPEND_ENTRIES_REPLY, q, msg }, 3)
+        |> AppendEntries.reply(q, msg)
 
     { :VOTE_REQUEST, { q, term, last_log_term, last_log_index} } ->
-      Vote.request(s, q, term, last_log_term, last_log_index)
+      s
+        |> Debug.received({ :VOTE_REQUEST, { q, term, last_log_term, last_log_index} }, 3)
+        |> Vote.request(q, term, last_log_term, last_log_index)
 
     { :VOTE_REPLY, { q, term, vote} } ->
-      Vote.reply(s, q, term, vote)
+      s
+        |> Debug.received({ :VOTE_REPLY, { q, term, vote} }, 3)
+        |> Vote.reply(q, term, vote)
 
     { :ELECTION_TIMEOUT, {curr_term, curr_election} } ->
-      Vote.election_timeout(s, curr_term, curr_election)
+      s
+        |> Debug.received({ :ELECTION_TIMEOUT, {curr_term, curr_election} }, 3)
+        |> Vote.election_timeout(curr_term, curr_election)
 
-    { :APPEND_ENTRIES_TIMEOUT, { _term, q } } ->
-      AppendEntries.timeout(s, q)
+    { :APPEND_ENTRIES_TIMEOUT, { term, q } } ->
+      s
+        |> Debug.received({ :APPEND_ENTRIES_TIMEOUT, { term, q } }, 3)
+        |> AppendEntries.timeout(q)
 
-    # { :CLIENT_REQUEST, req } ->
-    #    ClientReq.request(s, req)
+    { :CLIENT_REQUEST, req } ->
+      s
+        |> Debug.received({ :CLIENT_REQUEST, req }, 3)
+        |> ClientReq.request(req)
 
     # unexpected ->
     #   # omitted
