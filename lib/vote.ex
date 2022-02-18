@@ -21,7 +21,6 @@ def request(s, q, term, last_log_term, last_log_index) do
     |> Debug.info("Sending my vote reply and restarting election timer", 2)
     send q, { :VOTE_REPLY, { self(), term, s.voted_for}}
     Debug.sent(s, { :VOTE_REPLY, { self(), term, s.voted_for}, q}, 1)
-    s
   else
     s
   end
@@ -60,7 +59,7 @@ def reply(s, q, term, vote) do
 end # reply
 
 def election_timeout(s, _curr_term, _curr_election) do
-  Debug.info(s, "Election timer... starting election")
+  s = Debug.info(s, "Election timer... starting election")
   if s.role != :LEADER do
     s = Timer.restart_election_timer(s)
       |> State.inc_election()

@@ -15,7 +15,7 @@ DEBUG_OPTIONS = "+areq -areq +arep -arep +vreq +vall -vreq +vrep -vrep +atim -at
 DEBUG_OPTIONS = "!inf !snd ?rec"
 # DEBUG_OPTIONS = ""
 
-DEBUG_LEVEL   = 2
+DEBUG_LEVEL   = 3
 
 START     = Raft.start
 HOST	 := 127.0.0.1
