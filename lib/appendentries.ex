@@ -52,7 +52,7 @@ end # send_append_entries
 
 def request(s, q, { term, prev_log_index, prev_log_term, entries, commit_index }) do
   s = Timer.restart_election_timer(s)
-  s = if term > s.curr_term do
+  s = if term >= s.curr_term do
     State.stepdown(s, term)
   else
     s
@@ -76,10 +76,27 @@ end
 
 defp store_entries(s, prev_log_index, entries, commit_index) do
   {s, prev_log_index}
-end
+end # store_entries
 
 def reply(s, q, { term, success, index }) do # Implement handling the other servers' replies to append entry
-  s
-end
+  if term > s.curr_term do
+    State.stepdown(s, term)
+  else
+    if s.role == :LEADER and term == s.curr_term do
+      s = if success do
+        State.next_index(s, q, index + 1)
+      else
+        State.next_index(s, q, max(1, s.next_index[q] - 1))
+      end
+      if s.next_index[q] <= Log.last_index(s) do
+        send_append_entries(s, q)
+      else
+        s
+      end
+    else
+      s
+    end
+  end
+end # reply
 
 end # AppendEntriess

@@ -27,6 +27,7 @@ def next(s) do
   s = receive do
 
     { :APPEND_ENTRIES_REQUEST, q, msg } ->
+      Debug.received(s, ":APPEND_ENTRIES_REQUEST", 2)
       AppendEntries.request(s, q, msg)
 
     { :APPEND_ENTRIES_REPLY, q, msg } ->
@@ -44,8 +45,8 @@ def next(s) do
     { :APPEND_ENTRIES_TIMEOUT, { _term, q } } ->
       AppendEntries.timeout(s, q)
 
-    { :CLIENT_REQUEST, req } ->
-       ClientReq.request(s, req)
+    # { :CLIENT_REQUEST, req } ->
+    #    ClientReq.request(s, req)
 
     # unexpected ->
     #   # omitted

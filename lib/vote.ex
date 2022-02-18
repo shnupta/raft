@@ -70,7 +70,7 @@ def election_timeout(s, _curr_term, _curr_election) do
       |> Debug.info("Cancelling all append entries timers", 2)
       |> Timer.cancel_all_append_entries_timers()
 
-    for q <- s.servers do
+    for q <- Enum.filter(s.servers, fn p -> p != self() end) do
       send self(), { :APPEND_ENTRIES_TIMEOUT, { s.curr_term, q } }
       Debug.sent(s, { :APPEND_ENTRIES_TIMEOUT, { s.curr_term, q } }, 2)
     end
