@@ -58,7 +58,7 @@ def request(s, q, { term, prev_log_index, prev_log_term, entries, commit_index }
   else
     s
   end
-  if term < s.curr_term do
+  if term < s.curr_term do #TODO: Check if this control flow is different from pseudocode on slides
     send q, { :APPEND_ENTRIES_REPLY, self(), { s.curr_term, false, -1} } # TODO: Check this index is allowed
     Debug.sent(s, { :APPEND_ENTRIES_REPLY, self(), { s.curr_term, false, -1}, q}, 2)
   else
@@ -84,13 +84,17 @@ end # store_entries
 
 # TODO: Update the match index
 # TODO: Find out how the leader updates it's commit index
+@spec reply(atom | %{:curr_term => any, optional(any) => any}, any, {any, any, any}) :: atom | map
 def reply(s, q, { term, success, index }) do
   if term > s.curr_term do
     State.stepdown(s, term)
   else
-    if s.role == :LEADER and term == s.curr_term do
+    s = if s.role == :LEADER and term == s.curr_term do
       s = if success do
+        # We know entries up to index are replicated well,
+        # hence update match_index.
         State.next_index(s, q, index + 1)
+        State.match_index(s, q, index)
       else
         State.next_index(s, q, max(1, s.next_index[q] - 1))
       end
@@ -102,7 +106,52 @@ def reply(s, q, { term, success, index }) do
     else
       s
     end
+    Debug.info(s, "Leader about to start checking for commits!", 2)
+    check_commit(s)
   end
 end # reply
 
-end # AppendEntriess
+defp check_commit(s) do
+  cur_commit_index = s.commit_index
+  uncommited = Enum.slice(s.log, cur_commit_index .. -1)
+  Debug.info(s, "Uncommited Logs: #{inspect uncommited}", 2)
+  new_commit_index =
+      Enum.reduce_while(
+        uncommited,
+        cur_commit_index + 1,
+        fn _entry, entry_i ->
+          reps_count = known_replications(s, entry_i)
+          if reps_count > s.majority do
+            {:cont, entry_i + 1} # Continue trying the next index.
+          else
+            {:halt, entry_i} # Return the current entry_index.
+          end
+        end
+      ) - 1
+
+  Debug.info(s, "New commit index: #{inspect new_commit_index}", 2)
+  s = State.commit_index(s, new_commit_index)
+  # Apply these commits.
+
+  # Grab the commits that were just applied and send reply to clients
+  # just_commited = Enum.slice(s.log, cur_commit_index .. new_commit_index - 1)
+  # for entry <- just_commited do
+  #   # Send to entry.ClientP with :LEADER and our process id with mid.
+  # end
+  s
+end # check_commit
+
+defp known_replications(s, index) do
+  Enum.reduce(
+    s.servers, 1,
+    fn server, count ->
+      if server != s.selfP and Map.get(s.match_index, server) >= index do
+        count + 1
+      else
+        count
+      end
+    end
+  )
+end #known_replications
+
+end # AppendEntries
