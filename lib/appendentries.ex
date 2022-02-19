@@ -54,12 +54,15 @@ end # send_append_entries
 def request(s, q, { term, prev_log_index, prev_log_term, entries, commit_index }) do
   s = Timer.restart_election_timer(s)
   s = if term >= s.curr_term do
-    State.stepdown(s, term)
+    s
+      |> State.stepdown(term)
+      |> State.leaderP(q)
+      |> Debug.info("Stepped down and set leaderP as #{inspect q}", 3)
   else
     s
   end
-  if term < s.curr_term do #TODO: Check if this control flow is different from pseudocode on slides
-    send q, { :APPEND_ENTRIES_REPLY, self(), { s.curr_term, false, -1} } # TODO: Check this index is allowed
+  if term < s.curr_term do
+    send q, { :APPEND_ENTRIES_REPLY, self(), { s.curr_term, false, -1} }
     Debug.sent(s, { :APPEND_ENTRIES_REPLY, self(), { s.curr_term, false, -1}, q}, 2)
   else
     success = prev_log_index == 0 or ((prev_log_index <= Log.last_index(s)) and Log.term_at(s, prev_log_index) == prev_log_term)
@@ -69,7 +72,9 @@ def request(s, q, { term, prev_log_index, prev_log_term, entries, commit_index }
       {s, 0}
     end
     send q, { :APPEND_ENTRIES_REPLY, self(), { s.curr_term, success, index} }
-    Debug.sent(s, { :APPEND_ENTRIES_REPLY, self(), { s.curr_term, success, index}, q}, 2)
+    s
+      |> Debug.sent({ :APPEND_ENTRIES_REPLY, self(), { s.curr_term, success, index}, q}, 2)
+      |> apply_commits()
   end
 end
 
@@ -82,9 +87,6 @@ defp store_entries(s, prev_log_index, entries, commit_index) do
   {s, Log.last_index(s)}
 end # store_entries
 
-# TODO: Update the match index
-# TODO: Find out how the leader updates it's commit index
-@spec reply(atom | %{:curr_term => any, optional(any) => any}, any, {any, any, any}) :: atom | map
 def reply(s, q, { term, success, index }) do
   if term > s.curr_term do
     State.stepdown(s, term)
@@ -93,8 +95,9 @@ def reply(s, q, { term, success, index }) do
       s = if success do
         # We know entries up to index are replicated well,
         # hence update match_index.
-        State.next_index(s, q, index + 1)
-        State.match_index(s, q, index)
+        s
+          |> State.next_index(q, index + 1)
+          |> State.match_index(q, index)
       else
         State.next_index(s, q, max(1, s.next_index[q] - 1))
       end
@@ -114,14 +117,14 @@ end # reply
 defp check_commit(s) do
   cur_commit_index = s.commit_index
   uncommited = Enum.slice(s.log, cur_commit_index .. -1)
-  Debug.info(s, "Uncommited Logs: #{inspect uncommited}", 2)
+  s = Debug.info(s, "Uncommited Logs: #{inspect uncommited}", 2)
   new_commit_index =
       Enum.reduce_while(
         uncommited,
         cur_commit_index + 1,
         fn _entry, entry_i ->
           reps_count = known_replications(s, entry_i)
-          if reps_count > s.majority do
+          if reps_count >= s.majority do
             {:cont, entry_i + 1} # Continue trying the next index.
           else
             {:halt, entry_i} # Return the current entry_index.
@@ -129,15 +132,20 @@ defp check_commit(s) do
         end
       ) - 1
 
-  Debug.info(s, "New commit index: #{inspect new_commit_index}", 2)
-  s = State.commit_index(s, new_commit_index)
-  # Apply these commits.
+  s = Debug.info(s, "Old commit index: #{inspect cur_commit_index}", 2)
+  s = Debug.info(s, "New commit index: #{inspect new_commit_index}", 2)
+  s = s
+    |> State.commit_index(new_commit_index)
+    |> apply_commits()
+
 
   # Grab the commits that were just applied and send reply to clients
-  # just_commited = Enum.slice(s.log, cur_commit_index .. new_commit_index - 1)
-  # for entry <- just_commited do
-  #   # Send to entry.ClientP with :LEADER and our process id with mid.
-  # end
+  just_commited = Enum.slice(s.log, cur_commit_index .. new_commit_index - 1)
+  s = Debug.info(s, "Just committed: #{inspect just_commited}", 3)
+  for {_, entry} <- just_commited do
+    # Send to entry.ClientP with :LEADER and our process id with mid.
+    ClientReq.send_reply(entry)
+  end
   s
 end # check_commit
 
@@ -153,5 +161,19 @@ defp known_replications(s, index) do
     end
   )
 end #known_replications
+
+defp apply_commits(s) do
+  if s.last_applied == s.commit_index do
+    # Case where no new changes to apply
+    Debug.info(s, "No new commits to apply", 3)
+  else
+    needs_apply = Enum.slice(s.log, s.last_applied .. s.commit_index - 1)
+    for {_, entry} <- needs_apply do
+      send s.databaseP, { :DB_REQUEST, entry.request }
+    end
+    s = Debug.info(s, "Just applied #{inspect needs_apply}", 3)
+    State.last_applied(s, s.commit_index)
+  end
+end #apply_commits
 
 end # AppendEntries
