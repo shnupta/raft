@@ -8,13 +8,19 @@ defmodule ClientReq do
 
 def request(s, req) do
   if s.role == :LEADER do
-    entry = %{term: s.curr_term, request: req}
-    # TODO: Don't append entries which we already have
-    #       Instead check the status of the request and then reply based on that
-    #       Or do what we already do when append entries and notify the client later on
-    s
-      |> Log.append_entry(entry)
-      |> AppendEntries.send_all_append_entries()
+    case Log.request_status(s, req.cid) do
+      {:NEW, _} ->
+        entry = %{term: s.curr_term, request: req}
+        s
+          |> Log.append_entry(entry)
+          |> AppendEntries.send_all_append_entries()
+
+      {:LOGGED, _} ->
+        s #do nothing
+      {:COMMITTED, old_entry} ->
+        send_reply(old_entry)
+        s
+    end
   else
     if s.leaderP != nil, do: send req.clientP, { :CLIENT_REPLY, {req.cid, :NOT_LEADER, s.leaderP } }
     s
