@@ -17,8 +17,8 @@ def request(s, q, term, last_log_term, last_log_index) do
   if (term == s.curr_term and (s.voted_for == q or s.voted_for == nil))
     and (last_log_term > Log.last_term(s) or (last_log_term == Log.last_term(s) and last_log_index >= Log.last_index(s))) do
     s = State.voted_for(s, q)
-    |> Timer.restart_election_timer()
-    |> Debug.info("Sending my vote reply and restarting election timer", 2)
+      |> Timer.restart_election_timer()
+      |> Debug.info("Sending my vote reply and restarting election timer", 2)
     send q, { :VOTE_REPLY, { self(), term, s.voted_for}}
     Debug.sent(s, { :VOTE_REPLY, { self(), term, s.voted_for}, q}, 1)
   else
