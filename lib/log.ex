@@ -40,15 +40,15 @@ def request_status(s, cid) do
   # If not present, return :NEW
   # If present and index <= s.commit_index return :COMMITTED
   # If present and s.commit_index < index <= Log.last_index(s) return :LOGGED
-  index = Enum.find_index(s.log, fn {_, entry} -> entry.request.cid == cid end)
-  if index == nil do
+  val = Enum.filter(s.log, fn {_, entry} -> entry.request.cid == cid end)
+  if val == [] do
     {:NEW, nil}
   else
-    {_, entry} = Enum.at(s.log, index)
-    if s.commit_index > index + 1 do # 1-based
+    [{index, entry}] = val
+    if s.commit_index > index do # 1-based
       {:LOGGED, entry}
     else
-      {:COMMITED, entry}
+      {:COMMITTED, entry}
     end
   end
 end

@@ -3,10 +3,10 @@
 # coursework, raft 
 # Makefile, v1
 
-SERVERS   = 3      	
-CLIENTS   = 1      	
+SERVERS   = 10 
+CLIENTS   = 5      	
 
-TIMELIMIT = 15000	# quits after milli-seconds(ms)
+TIMELIMIT = 30000	# quits after milli-seconds(ms)
 SETUP     = default	# one of default, slower, faster, etc
 
 # AppendEntries(areq, arep, atim), Vote(vreq, vrep, vall), Election(etim), DB(dreq, drep), Client(creq, crep)
@@ -42,12 +42,22 @@ run cluster: compile
 	@ ${ELIXIR} server3_${NODE_SUFFIX} ${MIX} cluster_wait &
 	@ ${ELIXIR} server4_${NODE_SUFFIX} ${MIX} cluster_wait &
 	@ ${ELIXIR} server5_${NODE_SUFFIX} ${MIX} cluster_wait &
+	@ ${ELIXIR} server6_${NODE_SUFFIX} ${MIX} cluster_wait &
+	@ ${ELIXIR} server7_${NODE_SUFFIX} ${MIX} cluster_wait &
+	@ ${ELIXIR} server8_${NODE_SUFFIX} ${MIX} cluster_wait &
+	@ ${ELIXIR} server9_${NODE_SUFFIX} ${MIX} cluster_wait &
+	@ ${ELIXIR} server10_${NODE_SUFFIX} ${MIX} cluster_wait &
 	
 	@ ${ELIXIR} client1_${NODE_SUFFIX} ${MIX} cluster_wait &
 	@ ${ELIXIR} client2_${NODE_SUFFIX} ${MIX} cluster_wait &
 	@ ${ELIXIR} client3_${NODE_SUFFIX} ${MIX} cluster_wait &
 	@ ${ELIXIR} client4_${NODE_SUFFIX} ${MIX} cluster_wait &
 	@ ${ELIXIR} client5_${NODE_SUFFIX} ${MIX} cluster_wait &
+	@ ${ELIXIR} client6_${NODE_SUFFIX} ${MIX} cluster_wait &
+	@ ${ELIXIR} client7_${NODE_SUFFIX} ${MIX} cluster_wait &
+	@ ${ELIXIR} client8_${NODE_SUFFIX} ${MIX} cluster_wait &
+	@ ${ELIXIR} client9_${NODE_SUFFIX} ${MIX} cluster_wait &
+	@ ${ELIXIR} client10_${NODE_SUFFIX} ${MIX} cluster_wait &
 	@sleep 1
 	@ ${ELIXIR} raft_${NODE_SUFFIX} ${MIX} cluster_start
 

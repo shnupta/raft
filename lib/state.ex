@@ -82,6 +82,7 @@ def stepdown(s, t) do
   |> curr_term(t)
   |> role(:FOLLOWER)
   |> voted_for(nil)
+  |> Timer.cancel_all_append_entries_timers()
   |> Timer.restart_election_timer()
 end
 

@@ -14,12 +14,11 @@ def request(s, req) do
         s
           |> Log.append_entry(entry)
           |> AppendEntries.send_all_append_entries()
-
-      {:LOGGED, _} ->
-        s #do nothing
       {:COMMITTED, old_entry} ->
         send_reply(old_entry)
         s
+      {:LOGGED, _} ->
+        s #do nothing
     end
   else
     if s.leaderP != nil, do: send req.clientP, { :CLIENT_REPLY, {req.cid, :NOT_LEADER, s.leaderP } }

@@ -61,8 +61,11 @@ def next(s) do
         |> Debug.received({ :CLIENT_REQUEST, req }, 3)
         |> ClientReq.request(req)
 
-    # unexpected ->
-    #   # omitted
+    { :DB_REPLY, :OK } ->
+      s
+
+    unexpected ->
+      Helper.node_halt("Unexpected msg: #{inspect unexpected}")
 
   end # receive
 

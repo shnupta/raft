@@ -29,17 +29,26 @@ def start(config,  :cluster_start) do
 
   # bind servers and databases
   for num <- 0 .. config.n_servers-1 do
-    serverP   = Enum.at(servers, num) 
+    serverP   = Enum.at(servers, num)
     databaseP = Enum.at(databases, num)
     send serverP,   { :BIND, servers, databaseP }
     send databaseP, { :BIND, serverP }
-  end # for 
+  end # for
 
   # create 1 client in each client_node and bind to servers
   for num <- 1 .. config.n_clients do
     Node.spawn(:'client#{num}_#{config.node_suffix}', Client, :start, [config, num, servers])
   end # for
 
+  Enum.each(config.crash_servers, fn {server_num, time} -> Process.send_after(self(), { :DIE, Enum.at(servers, server_num - 1)}, time) end )
+  next()
+
 end # start
+
+defp next do
+  receive do
+    { :DIE, server } -> send server, :DIE
+  end
+end
 
 end # Raft

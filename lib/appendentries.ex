@@ -39,8 +39,10 @@ def send_append_entries(s, q) do
   s = s
     |> Debug.info("Last entry = #{last_entry}", 4)
     |> Debug.info("Last index = #{Log.last_index(s)}", 4)
+    |> Debug.info("LEADER LOG = #{inspect s.log}")
 
-  entries = Enum.slice(s.log, last_entry..- 1)
+  # entries = Log.get_entries(s, last_entry+1..last_entry+1)
+  entries = Log.get_entries(s, last_entry+1..Log.last_index(s))
   send q, { :APPEND_ENTRIES_REQUEST, self(),
   { s.curr_term, prev_log_index, prev_log_term,
   entries, s.commit_index } }
@@ -61,6 +63,7 @@ def request(s, q, { term, prev_log_index, prev_log_term, entries, commit_index }
   else
     s
   end
+  s = Debug.info(s, "FOLLOWER LOG BEFORE = #{inspect s.log}")
   if term < s.curr_term do
     send q, { :APPEND_ENTRIES_REPLY, self(), { s.curr_term, false, -1} }
     Debug.sent(s, { :APPEND_ENTRIES_REPLY, self(), { s.curr_term, false, -1}, q}, 2)
@@ -71,6 +74,7 @@ def request(s, q, { term, prev_log_index, prev_log_term, entries, commit_index }
     else
       {s, 0}
     end
+    s = Debug.info(s, "FOLLOWER LOG AFTER = #{inspect s.log}")
     send q, { :APPEND_ENTRIES_REPLY, self(), { s.curr_term, success, index} }
     s
       |> Debug.sent({ :APPEND_ENTRIES_REPLY, self(), { s.curr_term, success, index}, q}, 2)
@@ -80,10 +84,9 @@ end
 
 # TODO: Print some debug info to show the updated commit index
 defp store_entries(s, prev_log_index, entries, commit_index) do
-  { agreed, _ } = Enum.split(s.log, prev_log_index)
-  s = s
-    |> Log.new(Map.new(agreed ++ entries))
-    |> State.commit_index(min(commit_index, Log.last_index(s)))
+  s = Log.delete_entries(s, prev_log_index+1..Log.last_index(s)+1)
+  s = Log.merge_entries(s, entries)
+  s = State.commit_index(s, min(commit_index, Log.last_index(s)))
   {s, Log.last_index(s)}
 end # store_entries
 
@@ -91,7 +94,7 @@ def reply(s, q, { term, success, index }) do
   if term > s.curr_term do
     State.stepdown(s, term)
   else
-    s = if s.role == :LEADER and term == s.curr_term do
+    if s.role == :LEADER and term == s.curr_term do
       s = if success do
         # We know entries up to index are replicated well,
         # hence update match_index.
@@ -106,17 +109,17 @@ def reply(s, q, { term, success, index }) do
       else
         s
       end
+      s = Debug.info(s, "Leader about to start checking for commits!", 2)
+      check_commit(s)
     else
       s
     end
-    Debug.info(s, "Leader about to start checking for commits!", 2)
-    check_commit(s)
   end
 end # reply
 
 defp check_commit(s) do
   cur_commit_index = s.commit_index
-  uncommited = Enum.slice(s.log, cur_commit_index .. -1)
+  uncommited = Log.get_entries(s, cur_commit_index+1..Log.last_index(s))
   s = Debug.info(s, "Uncommited Logs: #{inspect uncommited}", 2)
   new_commit_index =
       Enum.reduce_while(
@@ -140,9 +143,10 @@ defp check_commit(s) do
 
 
   # Grab the commits that were just applied and send reply to clients
-  just_commited = Enum.slice(s.log, cur_commit_index .. new_commit_index - 1)
-  s = Debug.info(s, "Just committed: #{inspect just_commited}", 3)
-  for {_, entry} <- just_commited do
+  just_committed = Log.get_entries(s, cur_commit_index+1..new_commit_index)
+  # just_commited = Enum.slice(s.log, cur_commit_index .. new_commit_index - 1)
+  s = Debug.info(s, "Just committed: #{inspect just_committed}", 3)
+  for {_, entry} <- just_committed do
     # Send to entry.ClientP with :LEADER and our process id with mid.
     ClientReq.send_reply(entry)
   end
@@ -167,7 +171,7 @@ defp apply_commits(s) do
     # Case where no new changes to apply
     Debug.info(s, "No new commits to apply", 3)
   else
-    needs_apply = Enum.slice(s.log, s.last_applied .. s.commit_index - 1)
+    needs_apply = Log.get_entries(s, s.last_applied+1.. s.commit_index)
     for {_, entry} <- needs_apply do
       send s.databaseP, { :DB_REQUEST, entry.request }
     end
