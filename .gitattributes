@@ -1,3 +1,7 @@
+output/servers10_clients5_high_load.log filter=lfs diff=lfs merge=lfs -text
+output/servers5_clients5_leader_crash.log filter=lfs diff=lfs merge=lfs -text
+output/servers5_clients5_normal.log filter=lfs diff=lfs merge=lfs -text
+output/servers5_clients5_slow_append_reply.log filter=lfs diff=lfs merge=lfs -text
 /tempout.txt filter=lfs diff=lfs merge=lfs -text
 /output/servers10_clients5_high_load.log filter=lfs diff=lfs merge=lfs -text
 /output/servers5_clients5_leader_crash.log filter=lfs diff=lfs merge=lfs -text
