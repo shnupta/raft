@@ -94,7 +94,7 @@ def reply(s, q, { term, success, index }) do
   if term > s.curr_term do
     State.stepdown(s, term)
   else
-    if s.role == :LEADER and term == s.curr_term do
+    s = if s.role == :LEADER and term == s.curr_term do
       s = if success do
         # We know entries up to index are replicated well,
         # hence update match_index.
@@ -114,6 +114,8 @@ def reply(s, q, { term, success, index }) do
     else
       s
     end
+    Debug.info(s, "Leader about to start checking for commits!", 2)
+    check_commit(s)
   end
 end # reply
 
