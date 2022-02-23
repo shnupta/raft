@@ -35,4 +35,22 @@ def delete_entries(s, range), do:                 # e.g. delete s.log[3..5] keep
 def delete_entries_from(s, from), do:             # delete s.log[from..last] keep rest
   Log.delete_entries(s, from .. Log.last_index(s))
 
+def request_status(s, cid) do
+  # Find the index of the request with cid in s.log
+  # If not present, return :NEW
+  # If present and index <= s.commit_index return :COMMITTED
+  # If present and s.commit_index < index <= Log.last_index(s) return :LOGGED
+  val = Enum.filter(s.log, fn {_, entry} -> entry.request.cid == cid end)
+  if val == [] do
+    {:NEW, nil}
+  else
+    [{index, entry}] = val
+    if s.commit_index > index do # 1-based
+      {:LOGGED, entry}
+    else
+      {:COMMITTED, entry}
+    end
+  end
+end
+
 end # Log

@@ -6,20 +6,21 @@ defmodule Vote do
 
 # s = server process state (c.f. self/this)
 
-def request(s, q, term) do
+def request(s, q, term, last_log_term, last_log_index) do
   s = if term > s.curr_term do
     State.stepdown(s, term)
-      |> Debug.info(":VOTE_REQUEST - Stepping down", 2)
+      |> Debug.info(":VOTE_REQUEST  From #{inspect q} with term #{term} > #{s.curr_term} ...stepping down", 1)
   else
     s
   end
 
-  if (term == s.curr_term and (s.voted_for == q or s.voted_for == nil)) do
+  if (term == s.curr_term and (s.voted_for == q or s.voted_for == nil))
+    and (last_log_term > Log.last_term(s) or (last_log_term == Log.last_term(s) and last_log_index >= Log.last_index(s))) do
     s = State.voted_for(s, q)
-    |> Timer.restart_election_timer()
+      |> Timer.restart_election_timer()
+      |> Debug.info("Sending my vote reply and restarting election timer", 2)
     send q, { :VOTE_REPLY, { self(), term, s.voted_for}}
-    Debug.sent(s, { :VOTE_REPLY, { self(), term, s.voted_for}, q}, 2)
-    s
+    Debug.sent(s, { :VOTE_REPLY, { self(), term, s.voted_for}, q}, 1)
   else
     s
   end
@@ -28,7 +29,7 @@ end # request
 def reply(s, q, term, vote) do
   s = if term > s.curr_term do
     State.stepdown(s, term)
-      |> Debug.info(":VOTE_REPLY - Stepping down", 2)
+      |> Debug.info(":VOTE_REPLY  From #{inspect q} with term #{term} > #{s.curr_term} ...stepping down", 1)
   else
     s
   end
@@ -43,13 +44,11 @@ def reply(s, q, term, vote) do
     s = Timer.cancel_append_entries_timer(s, q)
 
     if State.has_majority_votes(s) do
-      s = s
+      s
         |> State.role(:LEADER)
         |> State.leaderP(self())
-        |> Debug.info("Became leader", 2)
-      # TODO: for each process except self, send append entries
-      results = for q <- Enum.filter(s.servers, fn p -> p != self() end), do: AppendEntries.send_append_entries(s, q)
-      List.last(results)
+        |> Debug.info("Has majority of votes... now is leader", 1)
+        |> AppendEntries.send_all_append_entries()
     else
       s
     end
@@ -59,19 +58,20 @@ def reply(s, q, term, vote) do
   end
 end # reply
 
-def election_timeout(s, curr_term, curr_election) do
+def election_timeout(s, _curr_term, _curr_election) do
+  s = Debug.info(s, "Election timer... starting election")
   if s.role != :LEADER do
     s = Timer.restart_election_timer(s)
       |> State.inc_election()
       |> State.inc_term()
       |> State.role(:CANDIDATE)
       |> State.vote_for_self()
-      |> Debug.info("Cancelling all append entries timers")
+      |> Debug.info("Cancelling all append entries timers", 2)
       |> Timer.cancel_all_append_entries_timers()
 
-    for q <- s.servers do
-      send self(), { :APPEND_ENTRIES_TIMEOUT, { q } }
-      Debug.sent(s, { :APPEND_ENTRIES_TIMEOUT, { q } })
+    for q <- Enum.filter(s.servers, fn p -> p != self() end) do
+      send self(), { :APPEND_ENTRIES_TIMEOUT, { s.curr_term, q } }
+      Debug.sent(s, { :APPEND_ENTRIES_TIMEOUT, { s.curr_term, q } }, 2)
     end
     s
   else

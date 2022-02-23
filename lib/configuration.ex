@@ -45,18 +45,20 @@ def params :default do
     max_amount:              1_000,    # max amount moved between accounts in a single transaction
 
     client_timelimit:        60_000,   # clients stops sending requests after this time(ms)
-    max_client_requests:     1,        # maximum no of requests each client will attempt
+    # client_timelimit:        300_000,   # clients stops sending requests after this time(ms)
+    max_client_requests:     1000,        # maximum no of requests each client will attempt
     client_request_interval: 5,        # interval(ms) between client requests
     client_reply_timeout:    500,      # timeout(ms) for the reply to a client request
 
     election_timeout_range:  100..200, # timeout(ms) for election, set randomly in range
+    # election_timeout_range:  1000..2000, # timeout(ms) for election, set randomly in range
     append_entries_timeout:  10,       # timeout(ms) for the reply to a append_entries request
 
     monitor_interval:        500,      # interval(ms) between monitor summaries
 
     crash_servers: %{		       # server_num => crash_after_time (ms), ..
-      3 => 10_000,
-      4 => 15_000,
+      # 3 => 10_000,
+      # 4 => 11_000,
     }
   }
 end # params :default
